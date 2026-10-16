@@ -1,0 +1,16 @@
+# Settings for ruff (`nix fmt`, and the lint check), and the package's
+# metadata: the code needs nothing installed (the standard library only),
+# `python3 -m nixkeeper_mcp` runs it from a checkout.
+[project]
+name = "nixkeeper-mcp"
+version = "0.1.0"
+description = "An MCP server answering questions about nixpkgs packages from nixkeeper's digests and dashboard."
+license = "MIT"
+requires-python = ">=3.11"
+
+[tool.ruff]
+line-length = 88  # Python's standard (Black / ruff default)
+
+[tool.ruff.lint]
+# pycodestyle, pyflakes, bugbear, pyupgrade, simplify, isort
+select = ["E", "F", "W", "B", "UP", "SIM", "I"]

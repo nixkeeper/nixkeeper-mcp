@@ -164,6 +164,12 @@ Python 3.11 or later and has nothing to install.
 `nix flake check` runs the tests (which never ask the real sources), lint
 and the formatting check; `nix fmt` formats; `nix develop` has the tools.
 
+Releases: bump the version in `pyproject.toml` and
+`nixkeeper_mcp/__init__.py`, move CHANGELOG.md's Unreleased entries under
+the new version, and once that's merged, push a tag `vX.Y.Z` on main's
+commit: `.github/workflows/release.yml` checks it and publishes the GitHub
+Release with that section as its notes.
+
 ## AI & automation disclosure
 
 This server's code and documentation are written with the assistance of an

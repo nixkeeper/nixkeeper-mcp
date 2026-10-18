@@ -5,7 +5,7 @@ import re
 from datetime import UTC, datetime, timedelta
 
 from . import sources
-from .cache import NotFound
+from .cache import NotFound, Unavailable
 
 
 class ToolError(Exception):
@@ -407,7 +407,7 @@ def needs_attention(
     for item in found:
         for why in item["why"]:
             counts[why] = counts.get(why, 0) + 1
-    return {
+    answer = {
         "view": path,
         "matches": len(found),
         "counts": counts,
@@ -415,6 +415,61 @@ def needs_attention(
         "readFrom": {"dashboard": read_from(file)},
         "note": "Each package's full state: the package tool.",
     }
+    if maintainer or team:
+        _add_can_merge(cache, answer, entries, maintainer, team)
+    return answer
+
+
+def _add_can_merge(cache, answer, entries, maintainer, team):
+    """A maintainer's or team's PRs to merge with the merge bot, as the
+    dashboard's "You can merge these": the maintainer's (their own first),
+    or those touching the packages nixpkgs lists under the team (meta.teams,
+    whose members are their maintainers; not a list of the same name's,
+    teamsByList). Oldest first after that. Left out when the PR digest
+    can't be read: the packages are the answer."""
+    try:
+        data, file = sources.prs(cache)
+    except Unavailable:
+        return
+    if maintainer:
+        who = maintainer.lstrip("@").lower()
+        prs = [p for p in data["prs"] if _can_merge(p) and _maintains(p, who)]
+    else:
+        theirs = team.lower()
+        keys = {
+            sources.package_key(e["name"])
+            for e in entries
+            if theirs not in {t.lower() for t in e.get("teamsByList") or []}
+        }
+        prs = [p for p in data["prs"] if _can_merge(p) and p["_keys"] & keys]
+        who = None
+    prs.sort(
+        key=lambda p: (
+            not (who and p.get("author", "").lower() == who),
+            p.get("created") or "",
+        )
+    )
+    if not prs:
+        return
+    shown = []
+    for pr in prs[:CAN_MERGE_SHOWN]:
+        item = {
+            "n": pr["n"],
+            "title": pr["title"],
+            "url": pr["url"],
+            "author": pr.get("author"),
+            "created": pr.get("created"),
+            "base": pr.get("base"),
+        }
+        if who and (pr.get("author") or "").lower() == who:
+            item["own"] = True
+        if pr.get("approvedBy"):
+            item["approvedBy"] = pr["approvedBy"]
+        if team:
+            item["canMerge"] = pr["mergeBot"]["maintainers"]
+        shown.append(item)
+    answer["canMerge"] = {"matches": len(prs), "prs": shown, "note": MERGE_NOTE}
+    answer["readFrom"]["prs"] = read_from(file, generatedAt=data.get("generatedAt"))
 
 
 def overview(ctx):
@@ -510,6 +565,36 @@ def build_failures(
 
 
 MERGE_BOT = ("ready", "eligible")
+MERGE_COMMAND = "@NixOS/nixpkgs-merge-bot merge"
+MERGE_NOTE = (
+    "Each one's maintainers can merge it with nixpkgs' merge bot: review it, "
+    f"then comment `{MERGE_COMMAND}` on the PR. The bot also asks that whoever "
+    "comments be in @NixOS/nixpkgs-maintainers (not public: not checked here)."
+)
+# At most so many of a maintainer's or team's in needs_attention.
+CAN_MERGE_SHOWN = 10
+
+
+def _can_merge(pr):
+    """Whether a PR's maintainers can merge it now with the merge bot, as
+    nixkeeper's "You can merge these" has it: ready (nixpkgs CI's own
+    verdict, the digest's mergeBot), someone maintains every package it
+    touches, not a draft, no conflict, no changes requested."""
+    mb = pr.get("mergeBot") or {}
+    return bool(
+        mb.get("ready")
+        and mb.get("maintainers")
+        and not pr.get("draft")
+        and pr.get("mergeable") != "CONFLICTING"
+        and pr.get("review") != "CHANGES_REQUESTED"
+    )
+
+
+def _maintains(pr, handle):
+    who = handle.lstrip("@").lower()
+    return any(m.lower() == who for m in pr["mergeBot"]["maintainers"])
+
+
 PR_STATES = ("superseded", "overtaken", "downgrade", "snapshotToRelease", "preRelease")
 
 
@@ -524,6 +609,7 @@ def pull_requests(
     state=None,
     blocks_bot=False,
     drafts=True,
+    can_merge=None,
     sort="updated",
     limit=30,
 ):
@@ -552,13 +638,18 @@ def pull_requests(
             continue
         if blocks_bot and not pr.get("blocksBot"):
             continue
+        if can_merge and not (_can_merge(pr) and _maintains(pr, can_merge)):
+            continue
         found.append({k: v for k, v in pr.items() if k != "_keys"})
     found.sort(key=lambda pr: pr.get(sort) or "", reverse=True)
-    return {
+    answer = {
         "matches": len(found),
         "prs": found[:limit],
         "readFrom": {"prs": read_from(file, generatedAt=data.get("generatedAt"))},
     }
+    if can_merge:
+        answer["note"] = MERGE_NOTE
+    return answer
 
 
 def _words(text):
@@ -876,7 +967,8 @@ TOOLS = [
             "fix to backport; optionally only one maintainer's (GitHub "
             "handle), one team's or one list's, one kind, one platform. "
             "Without maintainer, team or list: all of nixpkgs (thousands: "
-            "narrow with kind)."
+            "narrow with kind). With a maintainer or team, also the open PRs "
+            "they can merge now with the merge bot (canMerge)."
         ),
         "inputSchema": {
             "type": "object",
@@ -1010,6 +1102,12 @@ TOOLS = [
                     "type": "boolean",
                     "description": "Include drafts (default true).",
                 },
+                "can_merge": _s(
+                    "A maintainer's GitHub handle: only the PRs they can merge "
+                    "now with the merge bot (ready, not a draft, no conflict, "
+                    "no changes requested, and they maintain every package it "
+                    "touches)."
+                ),
                 "sort": _s(
                     "updated (default) or created, newest first.",
                     enum=["updated", "created"],

@@ -238,7 +238,8 @@ PRS = {
             "files": ["pkgs/by-name/we/wesnoth/package.nix"],
             "labels": ["x"],
             "update": {"attr": "wesnoth", "from": "1.18.7", "to": "1.18.8"},
-            "mergeBot": {"ready": True, "label": True},
+            "mergeBot": {"ready": True, "label": True, "maintainers": ["iedame"]},
+            "noPRFailures": "SUCCESS",
         },
         {
             "n": 2,

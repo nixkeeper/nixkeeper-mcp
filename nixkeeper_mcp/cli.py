@@ -1,5 +1,5 @@
 """`nixkeeper-mcp`: the MCP server over stdio, for an assistant to start
-(`claude mcp add nixkeeper -- nix run github:nixkeeper/nixkeeper-mcp`).
+(`claude mcp add nixkeeper -- nixkeeper-mcp`, README).
 
 `nixkeeper-mcp --call TOOL [JSON]` runs one tool and prints its answer,
 to try the tools by hand."""

@@ -10,10 +10,16 @@ public files, and needs no account or token.
 
 ## Using it
 
-With Claude Code:
+Install it once, then tell your assistant to start it. With Nix:
 
 ```bash
-claude mcp add --scope user nixkeeper -- nix run github:nixkeeper/nixkeeper-mcp
+nix profile install github:nixkeeper/nixkeeper-mcp
+```
+
+And with Claude Code:
+
+```bash
+claude mcp add --scope user nixkeeper -- nixkeeper-mcp
 ```
 
 Then ask: "what's wrong with wesnoth?", "which of iedame's packages need
@@ -22,9 +28,49 @@ could the merge bot merge for the Gaming team's packages?", "which of my
 packages break when staging-next is merged?"
 
 Any MCP client that starts a server on stdio works the same way, with the
-command `nix run github:nixkeeper/nixkeeper-mcp` (or `nixkeeper-mcp`, from
-the flake's `packages.default`). Without Nix: `python3 -m nixkeeper_mcp`
-in a checkout (Python 3.11 or later, standard library only).
+command `nixkeeper-mcp`. `nix profile upgrade nixkeeper-mcp` brings it up
+to date. Without Nix: `python3 -m nixkeeper_mcp` in a checkout (Python 3.11
+or later, standard library only).
+
+### With Home Manager
+
+The flake has a Home Manager module. It adds the server to Home Manager's
+shared MCP servers (`programs.mcp.servers`), which the assistants Home
+Manager configures read when their `enableMcpIntegration` is on: Claude
+Code, GitHub Copilot CLI and others. The server is the one your flake lock
+pins, so there's no `claude mcp add`, and nothing to download or build when
+an assistant starts it.
+
+```nix
+# flake.nix
+inputs.nixkeeper-mcp = {
+  url = "github:nixkeeper/nixkeeper-mcp";
+  inputs.nixpkgs.follows = "nixpkgs";
+};
+
+# Home Manager
+imports = [ inputs.nixkeeper-mcp.homeModules.default ];
+programs.nixkeeper-mcp.enable = true;
+programs.claude-code.enableMcpIntegration = true;
+```
+
+The module's options are the server's: `ttl`, `offline`, `cacheDir`, and
+`dashboard`, `digestOwner` and `page` for another instance's data (see
+Options below); `name` is the server's name for the assistants
+(`nixkeeper`), and `package` the build to run. The module is also
+`homeManagerModules.default`, for setups that look for that name.
+
+### To try it first
+
+```bash
+claude mcp add --scope user nixkeeper -- nix run github:nixkeeper/nixkeeper-mcp
+```
+
+This runs it without installing anything, but Nix fetches the flake on
+every start, and asks GitHub again once its copy is an hour old. The first
+start downloads and builds it, which can take longer than an assistant
+waits for a server to start (30 seconds in Claude Code): if it gives up,
+start it again once the build is done, or install it as above.
 
 ## The tools
 
@@ -101,7 +147,7 @@ instance's data, a fork's; the answers link to the page beside the
 dashboard's data (`https://nixkeeper.com/`), or `NIXKEEPER_MCP_PAGE`.
 
 With Claude Code, options go after the command:
-`claude mcp add nixkeeper -- nix run github:nixkeeper/nixkeeper-mcp -- --ttl 60`.
+`claude mcp add nixkeeper -- nixkeeper-mcp --ttl 60`.
 
 ## The protocol
 

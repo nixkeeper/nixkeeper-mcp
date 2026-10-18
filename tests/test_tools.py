@@ -172,6 +172,49 @@ class NeedsAttention(unittest.TestCase):
             call("needs_attention", maintainer="iedame", team="Gaming")
 
 
+class CanMerge(unittest.TestCase):
+    """The PRs a maintainer or team can merge with the merge bot."""
+
+    def test_a_maintainers(self):
+        got = call("needs_attention", maintainer="iedame")["canMerge"]
+        self.assertEqual(got["matches"], 1)
+        self.assertEqual(
+            got["prs"][0],
+            {
+                "n": 1,
+                "title": "wesnoth: 1.18.7 -> 1.18.8",
+                "url": "https://github.com/NixOS/nixpkgs/pull/1",
+                "author": "r-ryantm",
+                "created": "2026-10-12T00:00:00Z",
+                "base": "master",
+            },
+        )
+        self.assertIn("@NixOS/nixpkgs-maintainers", got["note"])
+        self.assertIn("prs", call("needs_attention", maintainer="iedame")["readFrom"])
+        # Nothing to merge: no canMerge (all of nixpkgs: not asked).
+        self.assertNotIn("canMerge", call("needs_attention"))
+
+    def test_a_teams_by_meta_teams_only(self):
+        got = call("needs_attention", team="Gaming")["canMerge"]
+        self.assertEqual(got["prs"][0]["canMerge"], ["iedame"])
+        # Packages a list of the team's name adds: their own maintainers'.
+        ctx = fixtures.Context()
+        entries = [
+            {"name": e["name"], "teamsByList": ["Gaming"]}
+            for e in fixtures.MAINTAINER_IEDAME["packages"]
+        ]
+        answer = {"readFrom": {}}
+        tools._add_can_merge(ctx.cache, answer, entries, None, "gaming")
+        self.assertNotIn("canMerge", answer)
+
+    def test_pull_requests(self):
+        got = call("pull_requests", can_merge="@IEDAME")
+        self.assertEqual([p["n"] for p in got["prs"]], [1])
+        self.assertEqual(got["prs"][0]["noPRFailures"], "SUCCESS")
+        self.assertIn("merge bot", got["note"])
+        self.assertEqual(call("pull_requests", can_merge="someone")["matches"], 0)
+
+
 class Overview(unittest.TestCase):
     def test_counts_and_blockers(self):
         got = call("overview")

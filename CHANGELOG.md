@@ -12,6 +12,23 @@ notes (`.github/workflows/release.yml`).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-18
+
+### Added
+
+- "Which PRs can I merge?": `needs_attention` with a maintainer or a team
+  adds `canMerge`, the open PRs they can merge now with nixpkgs' merge bot
+  (ready, not a draft, no conflict, no changes requested, and they maintain
+  every package it touches; a maintainer's own first, then the longest
+  waiting; for a team, the packages nixpkgs lists under it, not those a
+  list of its name adds), with the comment to post. `pull_requests` takes
+  `can_merge` (a handle) for all of them. As nixkeeper's "You can merge
+  these". The merge bot also asks for @NixOS/nixpkgs-maintainers, which
+  isn't public: the answers say so.
+- `pull_requests` passes on `noPRFailures`, nixpkgs CI's own verdict (the
+  `no PR failures` status) the merge bot goes by, beside `ci`, every
+  check's state (which ofborg's queued checks keep pending).
+
 ## [0.2.0] - 2026-10-18
 
 ### Added
@@ -50,6 +67,7 @@ notes (`.github/workflows/release.yml`).
   `NIXKEEPER_MCP_DASHBOARD`, `NIXKEEPER_MCP_DIGEST_OWNER` and
   `NIXKEEPER_MCP_PAGE`.
 
-[Unreleased]: https://github.com/nixkeeper/nixkeeper-mcp/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/nixkeeper/nixkeeper-mcp/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/nixkeeper/nixkeeper-mcp/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/nixkeeper/nixkeeper-mcp/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/nixkeeper/nixkeeper-mcp/releases/tag/v0.1.0

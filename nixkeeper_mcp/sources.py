@@ -313,6 +313,7 @@ PR_FIELDS = (
     "review",
     "approvedBy",
     "ci",
+    "noPRFailures",
     "buckets",
     "packages",
     "maintainers",

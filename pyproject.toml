@@ -3,7 +3,7 @@
 # `python3 -m nixkeeper_mcp` runs it from a checkout.
 [project]
 name = "nixkeeper-mcp"
-version = "0.2.0"
+version = "0.3.0"
 description = "An MCP server answering questions about nixpkgs packages from nixkeeper's digests and dashboard."
 license = "MIT"
 requires-python = ">=3.11"

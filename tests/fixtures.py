@@ -35,7 +35,9 @@ INDEX = {
         "bot": {"hash": 2},
     },
     "fixed": {"days": 7},
-    "views": {"teams": {"Gaming": 2}},
+    "numbers": {"builds": 5, "failing": 1, "blocked": 0, "unfinished": 0},
+    "merge": {"prs": 1, "maintainers": 1, "over90": 0},
+    "views": {"teams": {"Gaming": 2}, "unbuilt": 1},
     "sources": {
         "hydra": {"used": True, "at": "2026-10-14T06:00:00+00:00", "eval": 100},
         "updates": {"used": True, "at": "2026-10-14T08:00:00+00:00"},
@@ -106,7 +108,21 @@ OPENTTD = {
 ROWS = {
     "packages": [
         WESNOTH,
-        {"name": "wesnoth-devel", "attrs": ["wesnoth-devel"], "nixStatus": "newest"},
+        {
+            "name": "wesnoth-devel",
+            "attrs": ["wesnoth-devel"],
+            "nixStatus": "newest",
+            # Listed for Darwin, built on Linux only (notBuiltWhereListed).
+            "platforms": {"linux": True, "darwin": True},
+            "builds": [
+                {"attr": "wesnoth-devel", "system": "x86_64-linux", "status": "ok"},
+                {
+                    "attr": "wesnoth-devel",
+                    "system": "aarch64-darwin",
+                    "status": "notBuilt",
+                },
+            ],
+        },
         OPENTTD,
         {"name": "python313Packages.requests", "attrs": ["python313Packages.requests"]},
         {"name": "haskellPackages.aeson", "set": "haskellPackages"},
@@ -361,6 +377,9 @@ def files():
         d + "views/attention.json": json.dumps(ATTENTION).encode(),
         d + "views/maintainer/iedame.json": json.dumps(MAINTAINER_IEDAME).encode(),
         d + "views/team/gaming.json": json.dumps(MAINTAINER_IEDAME).encode(),
+        d + "views/merge.json": json.dumps(
+            {"prs": [{"number": 1, "behind": "1.18.9", "vulnerable": True}]}
+        ).encode(),
         sources.BUILDS: gzip.compress(BUILDS_CSV.encode()),
         sources.ATTEMPTS: gzip.compress(
             "\n".join(json.dumps(a) for a in ATTEMPTS).encode() + b"\n"

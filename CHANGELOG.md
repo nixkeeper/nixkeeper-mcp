@@ -12,6 +12,25 @@ notes (`.github/workflows/release.yml`).
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-19
+
+### Added
+
+- What nixkeeper 0.20.0 added, for an assistant too:
+  - `package`: `notBuiltWhereListed`, the platforms nixpkgs lists the
+    package for but Hydra doesn't build it on (the page's struck platform
+    tags); the row it returns already has its update PR's `behind` and
+    `vulnerable`, the CVE issue checks (`cveFixed`: a candidate to close)
+    and the bot's expected day (`queued.by`).
+  - `needs_attention`: each package's `notBuiltWhereListed` and
+    `botExpectedBy`; and in `canMerge`, each PR's `behind` and `vulnerable`
+    (from the dashboard's merge list), those for a vulnerable package right
+    after the maintainer's own, as on the page.
+  - `overview`: `numbers` (Hydra's builds by kind, update PRs behind
+    upstream, packages without a maintainer), `mergeBot` (the PRs waiting
+    for their own maintainers) and `notBuiltWhereListed` (how many), the
+    page's "nixpkgs in numbers".
+
 ## [0.3.0] - 2026-10-18
 
 ### Added
@@ -67,7 +86,8 @@ notes (`.github/workflows/release.yml`).
   `NIXKEEPER_MCP_DASHBOARD`, `NIXKEEPER_MCP_DIGEST_OWNER` and
   `NIXKEEPER_MCP_PAGE`.
 
-[Unreleased]: https://github.com/nixkeeper/nixkeeper-mcp/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/nixkeeper/nixkeeper-mcp/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/nixkeeper/nixkeeper-mcp/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/nixkeeper/nixkeeper-mcp/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/nixkeeper/nixkeeper-mcp/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/nixkeeper/nixkeeper-mcp/releases/tag/v0.1.0

@@ -20,6 +20,8 @@ import os
 import re
 import zlib
 
+from .cache import Unavailable
+
 DASHBOARD = os.environ.get("NIXKEEPER_MCP_DASHBOARD", "https://nixkeeper.com/data/")
 DIGEST_OWNER = os.environ.get("NIXKEEPER_MCP_DIGEST_OWNER", "nixkeeper")
 
@@ -164,6 +166,64 @@ def view(cache, path):
     """A view's summary entries (views/attention.json, ...)."""
     data, file = cache.load(DASHBOARD + path, _json)
     return data["packages"], file
+
+
+def merge_facts(cache):
+    """{PR number: {"behind"?, "vulnerable"?}} from the dashboard's merge
+    list (views/merge.json): what nixkeeper adds to a PR ready for the merge
+    bot, as its "You can merge these" shows. {} without it."""
+    try:
+        data, _ = cache.load(DASHBOARD + "views/merge.json", _json)
+    except Unavailable:
+        return {}
+    return {
+        pr["number"]: {k: pr[k] for k in ("behind", "vulnerable") if pr.get(k)}
+        for pr in data.get("prs") or []
+    }
+
+
+# Where a package is listed but Hydra doesn't build it: each Linux system
+# apart, Darwin as one (nixkeeper's datastore.unbuilt_where, the page's
+# struck platform tags).
+UNBUILT_KEYS = ("x86_64-linux", "aarch64-linux", "darwin")
+
+
+def _on_platform(row, key):
+    platforms = row.get("platforms", {})
+    if platforms is None:
+        return True  # no restriction: every platform
+    family = key.split("-")[-1]
+    if not platforms.get(family):
+        return False
+    systems = platforms.get("systems")
+    return key == family or not systems or key in systems
+
+
+def _on_system(system, key):
+    return system == key if "-" in key else system.endswith("-" + key)
+
+
+def unbuilt_where(row):
+    """The platforms row is listed for but Hydra doesn't build it on (none
+    of its builds there exists, usually as a dependency isn't available
+    there), while Hydra builds it elsewhere: [] when built everywhere
+    listed, or nowhere (unfree, kept off it)."""
+    builds = row.get("builds") or []
+    found = []
+    for key in UNBUILT_KEYS:
+        here = [b for b in builds if _on_system(b["system"], key)]
+        if (
+            here
+            and _on_platform(row, key)
+            and all(b["status"] == "notBuilt" for b in here)
+            and any(
+                b["status"] != "notBuilt"
+                for b in builds
+                if not _on_system(b["system"], key)
+            )
+        ):
+            found.append(key)
+    return found
 
 
 def view_slug(name):

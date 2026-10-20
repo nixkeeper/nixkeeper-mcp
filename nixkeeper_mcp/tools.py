@@ -200,6 +200,10 @@ def package(ctx, name, repology=False):
     for build in shown.get("builds") or []:
         if build.get("build"):
             build["url"] = sources.HYDRA_BUILD + str(build["build"])
+    # Listed for a platform Hydra doesn't build it on (the page's struck
+    # platform tags).
+    if unbuilt := sources.unbuilt_where(row):
+        shown["notBuiltWhereListed"] = unbuilt
 
     # What the digests have that's newer than the row (read hourly; the
     # dashboard syncs every 3 hours): a newer Hydra build, a newer attempt.
@@ -361,6 +365,12 @@ def needs_attention(
         item = {"name": entry["name"], "why": reasons}
         if failing:
             item["failingOn"] = failing
+        if unbuilt := sources.unbuilt_where(entry):
+            item["notBuiltWhereListed"] = unbuilt
+        if by := (entry.get("queued") or {}).get("by"):
+            # The day the update bot is expected to try it ("auto update in
+            # 4 days" on the page, when its version is the newest).
+            item["botExpectedBy"] = by
         for key in (
             "nixVersion",
             "refVersion",
@@ -425,7 +435,9 @@ def _add_can_merge(cache, answer, entries, maintainer, team):
     dashboard's "You can merge these": the maintainer's (their own first),
     or those touching the packages nixpkgs lists under the team (meta.teams,
     whose members are their maintainers; not a list of the same name's,
-    teamsByList). Oldest first after that. Left out when the PR digest
+    teamsByList). Those for a vulnerable package next, then the longest
+    waiting, each with what the dashboard adds (behind, vulnerable). Left out
+    when the PR digest
     can't be read: the packages are the answer."""
     try:
         data, file = sources.prs(cache)
@@ -443,14 +455,20 @@ def _add_can_merge(cache, answer, entries, maintainer, team):
         }
         prs = [p for p in data["prs"] if _can_merge(p) and p["_keys"] & keys]
         who = None
+    if not prs:
+        return
+    # What nixkeeper adds to each (the dashboard's merge list): behind
+    # upstream, for a vulnerable package. The maintainer's own first, then
+    # those for a vulnerable package, then the longest waiting, as on the
+    # page.
+    facts = sources.merge_facts(cache)
     prs.sort(
         key=lambda p: (
             not (who and p.get("author", "").lower() == who),
+            not (facts.get(p["n"]) or {}).get("vulnerable"),
             p.get("created") or "",
         )
     )
-    if not prs:
-        return
     shown = []
     for pr in prs[:CAN_MERGE_SHOWN]:
         item = {
@@ -465,6 +483,7 @@ def _add_can_merge(cache, answer, entries, maintainer, team):
             item["own"] = True
         if pr.get("approvedBy"):
             item["approvedBy"] = pr["approvedBy"]
+        item.update(facts.get(pr["n"]) or {})
         if team:
             item["canMerge"] = pr["mergeBot"]["maintainers"]
         shown.append(item)
@@ -494,6 +513,12 @@ def overview(ctx):
         ],
         "updateBotFailureCauses": causes.get("bot"),
         "fixed": idx.get("fixed"),
+        # The overview's "nixpkgs in numbers": Hydra's builds by kind,
+        # update PRs behind upstream, packages without a maintainer; and
+        # the PRs waiting for their own maintainers to merge.
+        "numbers": idx.get("numbers"),
+        "mergeBot": idx.get("merge"),
+        "notBuiltWhereListed": (idx.get("views") or {}).get("unbuilt"),
         "sources": {k: v.get("at") for k, v in (idx.get("sources") or {}).items()},
         "readFrom": {"dashboard": read_from(file)},
     }

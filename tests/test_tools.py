@@ -1,7 +1,7 @@
 import unittest
 from datetime import timedelta
 
-from nixkeeper_mcp import tools
+from nixkeeper_mcp import sources, tools
 
 from . import fixtures
 
@@ -187,6 +187,9 @@ class CanMerge(unittest.TestCase):
                 "author": "r-ryantm",
                 "created": "2026-10-12T00:00:00Z",
                 "base": "master",
+                # What the dashboard's merge list adds.
+                "behind": "1.18.9",
+                "vulnerable": True,
             },
         )
         self.assertIn("@NixOS/nixpkgs-maintainers", got["note"])
@@ -207,12 +210,54 @@ class CanMerge(unittest.TestCase):
         tools._add_can_merge(ctx.cache, answer, entries, None, "gaming")
         self.assertNotIn("canMerge", answer)
 
+    def test_what_nixkeeper_adds(self):
+        got = call("needs_attention", maintainer="iedame")["canMerge"]["prs"][0]
+        self.assertEqual((got["behind"], got["vulnerable"]), ("1.18.9", True))
+
     def test_pull_requests(self):
         got = call("pull_requests", can_merge="@IEDAME")
         self.assertEqual([p["n"] for p in got["prs"]], [1])
         self.assertEqual(got["prs"][0]["noPRFailures"], "SUCCESS")
         self.assertIn("merge bot", got["note"])
         self.assertEqual(call("pull_requests", can_merge="someone")["matches"], 0)
+
+
+class NewFacts(unittest.TestCase):
+    """Since nixkeeper 0.20.0: platforms listed but not built, the bot's
+    expected day, the overview's numbers."""
+
+    def test_package_not_built_where_listed(self):
+        self.assertEqual(
+            call("package", name="wesnoth-devel")["notBuiltWhereListed"], ["darwin"]
+        )
+        self.assertNotIn("notBuiltWhereListed", call("package", name="wesnoth"))
+
+    def test_unbuilt_rule(self):
+        def row(platforms, *builds):
+            return {
+                "platforms": platforms,
+                "builds": [{"system": s, "status": st} for s, st in builds],
+            }
+
+        both = {"linux": True, "darwin": True}
+        self.assertEqual(
+            sources.unbuilt_where(
+                row(both, ("x86_64-linux", "ok"), ("aarch64-linux", "notBuilt"))
+            ),
+            ["aarch64-linux"],
+        )
+        nowhere = row(
+            both, ("x86_64-linux", "notBuilt"), ("aarch64-darwin", "notBuilt")
+        )
+        self.assertEqual(sources.unbuilt_where(nowhere), [])
+        anywhere = row(None, ("x86_64-linux", "ok"), ("aarch64-darwin", "notBuilt"))
+        self.assertEqual(sources.unbuilt_where(anywhere), ["darwin"])
+
+    def test_overview_numbers(self):
+        got = call("overview")
+        self.assertEqual(got["numbers"]["builds"], 5)
+        self.assertEqual(got["mergeBot"]["prs"], 1)
+        self.assertEqual(got["notBuiltWhereListed"], 1)
 
 
 class Overview(unittest.TestCase):

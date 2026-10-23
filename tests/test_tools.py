@@ -56,6 +56,10 @@ class Package(unittest.TestCase):
         self.assertEqual(newer["updatePending"], "2026-10-14")
         self.assertEqual(got["readFrom"]["dashboard"]["syncedAt"], INDEX_AT)
 
+    def test_an_older_version_kept_says_so(self):
+        got = call("package", name="firefox-esr")
+        self.assertEqual(got["status"], "older version kept beside firefox 158.0.1")
+
     def test_repology_trimmed_to_nixpkgs_and_the_newest(self):
         got = call("package", name="wesnoth")["repology"]
         self.assertEqual(
@@ -322,7 +326,8 @@ class PullRequests(unittest.TestCase):
 class Issues(unittest.TestCase):
     def test_about_a_package(self):
         got = call("issues", package="openttd")
-        # The build failure it names, and every word of its name in a title.
+        # The build failure it names, and its name whole in a title (not
+        # openttd-jgrpp's).
         self.assertEqual([i["n"] for i in got["issues"]], [11, 10])
         self.assertEqual(
             got["issues"][0]["url"], "https://github.com/NixOS/nixpkgs/issues/11"

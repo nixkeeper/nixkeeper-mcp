@@ -12,6 +12,21 @@ notes (`.github/workflows/release.yml`).
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-10-23
+
+### Fixed
+
+- As nixkeeper 0.22.0 counts them:
+  - `issues` with a package: the issues with its name whole in their
+    title, besides those the digest says are about it, not every title
+    with its name's words ("pkg": 8 issues, not 27 with "pkgs/..." and
+    "pkg-config" in them; "go": 21, not 39).
+  - `package`: an older version kept on purpose beside a newer one says so
+    ("older version kept beside firefox 158.0.1"), rather than "can't be
+    compared". The dashboard's own fixes (firefox-esr's `esr` suffix,
+    thunderbird-153 behind in its own series, PR and issue counts about the
+    package, `searchShowsMore`) come through as they are.
+
 ## [0.4.0] - 2026-10-19
 
 ### Added
@@ -86,7 +101,8 @@ notes (`.github/workflows/release.yml`).
   `NIXKEEPER_MCP_DASHBOARD`, `NIXKEEPER_MCP_DIGEST_OWNER` and
   `NIXKEEPER_MCP_PAGE`.
 
-[Unreleased]: https://github.com/nixkeeper/nixkeeper-mcp/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/nixkeeper/nixkeeper-mcp/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/nixkeeper/nixkeeper-mcp/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/nixkeeper/nixkeeper-mcp/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/nixkeeper/nixkeeper-mcp/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/nixkeeper/nixkeeper-mcp/compare/v0.1.0...v0.2.0

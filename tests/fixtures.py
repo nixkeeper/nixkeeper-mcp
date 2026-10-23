@@ -52,6 +52,7 @@ NAMES = {
         ["python313Packages.requests", "u"],
         ["haskellPackages.aeson", "o", "haskellPackages"],
         ["unciv", "m"],
+        ["firefox-esr", "n"],
     ]
 }
 
@@ -127,6 +128,11 @@ ROWS = {
         {"name": "python313Packages.requests", "attrs": ["python313Packages.requests"]},
         {"name": "haskellPackages.aeson", "set": "haskellPackages"},
         {"name": "unciv", "nixStatus": "outdated"},
+        {
+            "name": "firefox-esr",
+            "nixStatus": "legacy",
+            "keptBeside": {"attr": "firefox", "version": "158.0.1"},
+        },
     ]
 }
 
@@ -294,6 +300,8 @@ ISSUES = {
             "hydra": {"package": "openttd", "verdict": "failing"},
         },
         {"n": 11, "title": "OpenTTD crashes on start"},
+        # Not openttd's: another name that starts with it.
+        {"n": 14, "title": "openttd-jgrpp: crashes when saving"},
         {
             "n": 12,
             "title": "Update request: wesnoth 1.18.7 → 1.18.8",

@@ -191,6 +191,14 @@ def package(ctx, name, repology=False):
     letter = (known.get(row["name"].lower()) or [None, None])[1]
     shown = {k: v for k, v in row.items() if k not in ("dataFile", "repology")}
     shown["status"] = sources.status_text(letter)
+    kept = row.get("keptBeside")
+    if kept and letter and letter.startswith("n"):
+        # An older version kept on purpose (firefox-esr beside firefox), as
+        # the page says it, rather than "can't be compared".
+        shown["status"] = shown["status"].replace(
+            STATUS_NOT_COMPARED,
+            f"older version kept beside {kept.get('attr')} {kept.get('version')}",
+        )
     shown["page"] = page_link(row["name"])
     if row.get("repology"):
         if repology:
@@ -251,6 +259,8 @@ def package(ctx, name, repology=False):
     }
     return shown
 
+
+STATUS_NOT_COMPARED = sources.STATUS["n"]
 
 ATTENTION_KINDS = (
     "any",
@@ -677,8 +687,17 @@ def pull_requests(
     return answer
 
 
-def _words(text):
-    return set(re.findall(r"[a-z0-9_]+", (text or "").lower()))
+# A nixpkgs name in a title: an attribute or a package's name, letters,
+# digits and _ . + - (python3Packages.requests, gtk+3), a final "." being
+# the sentence's: as nixkeeper counts a package's issues
+# (nixkeeper/sources/github_bulk.py: title_names, since 0.22.0).
+NAME = re.compile(r"[A-Za-z0-9_][\w.+-]*")
+
+
+def _names(text):
+    """The names in a title, as package keys: "Build failure: pkg-config"
+    has pkg-config, not pkg."""
+    return {sources.package_key(n.rstrip(".")) for n in NAME.findall(text or "")}
 
 
 def issues(ctx, package=None, search=None, kind=None, verdict=None, limit=30):
@@ -706,9 +725,9 @@ def issues(ctx, package=None, search=None, kind=None, verdict=None, limit=30):
                 )
                 if x
             }
-            # Else by the words of its title, as nixkeeper counts a
-            # package's issues: every word of the package's name.
-            if key not in named and not _words(package) <= _words(issue["title"]):
+            # Else its name, whole, in the title, as nixkeeper counts a
+            # package's issues ("pkg" isn't "pkgs/..." nor "pkg-config").
+            if key not in named and key not in _names(issue["title"]):
                 continue
         if search and search.lower() not in issue["title"].lower():
             continue
@@ -1158,7 +1177,8 @@ TOOLS = [
             "properties": {
                 "package": _s(
                     "Issues about it: the package a build failure or update "
-                    "request names, or every word of its name in the title."
+                    "request names, or its name whole in the title (not "
+                    "pkg-config for pkg)."
                 ),
                 "search": _s("Part of the title."),
                 "kind": _s(

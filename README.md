@@ -78,7 +78,7 @@ start it again once the build is done, or install it as above.
 |---|---|---|
 | `package` | Everything about one package: nixpkgs' version against upstream's, master's, Hydra's builds on each platform (why a failure failed, when it last built, platforms it's listed for but never built on), the update bot's latest attempt and when it tries next, its update PR and other PRs and issues, CVEs with nixkeeper's verdict against nixpkgs' version, maintainers and teams; an update merged into staging or staging-next on its way to master, and whether staging-next breaks the package; and what the hourly digests have that's newer than the dashboard's last sync | the dashboard's row, the builds and update-bot digests |
 | `find_packages` | Packages by name, with their status | the dashboard |
-| `needs_attention` | What needs attention (failing, outdated, vulnerable, a fix to backport), all of nixpkgs or one maintainer's, team's or list's, by kind and platform, worst first; or what breaks on staging-next (a forecast, its own kind); for a maintainer or team, also the PRs they can merge now with the merge bot (`canMerge`) | the dashboard's views, digest-prs |
+| `needs_attention` | What needs attention (failing, outdated, vulnerable, a fix to backport), all of nixpkgs or one maintainer's, team's or list's, by kind and platform, worst first; or what breaks on staging-next (a forecast, its own kind); for a maintainer or team, also the PRs they can merge now with the merge bot (`canMerge`). Or the page's search as a `query` (`is:builds on:darwin team:Gaming wine`), with the page's link for it | the dashboard's views, digest-prs |
 | `overview` | All of nixpkgs: counts and trends' latest, the page's "nixpkgs in numbers", the newest and longest-standing failures, the dependencies blocking the most builds, why builds and the bot fail, what was fixed this week | the dashboard |
 | `build_failures` | Hydra builds of master that aren't ok: by package or set, system, reason, the dependency that blocked them, since when; newest or longest failing first | digest-builds |
 | `pull_requests` | Open nixpkgs PRs: touching a package, by author, bucket, base branch; ready for the merge bot, those a maintainer can merge with it (`can_merge`), blocking the update bot, superseded | digest-prs |
@@ -86,6 +86,16 @@ start it again once the build is done, or install it as above.
 | `update_attempts` | The update bot's latest attempts: one package's with its place in the queue, or by outcome, reason, since when | digest-update-bot |
 | `vulnerabilities` | One package's CVEs and advisories, one CVE's packages, or the worst affecting something now | digest-vulnerabilities |
 | `data_status` | When each source was last made and read, and what's cached | every `meta.json` |
+
+`needs_attention`'s `query` takes the words of the dashboard page's search
+box: `is:` one card (`outdated`, `failed`, `builds`, `updates`,
+`vulnerable`, `backport`, `broken`, `staging-next-breaks`), `is:unbuilt`,
+`-is:broken`, `has:pr`, `-has:pr`, `-has:maintainer`, `on:linux` or
+`on:darwin`, `in:` a package set, `team:`, `by:` or `@handle`, and words of
+a name; without `is:`, every package of the maintainer's or team's, as the
+page lists them. A word it can't apply (`age:`, `sort:`, `status:`...) is
+refused rather than left out, and each answer links the page with the
+query (`query.page`), which takes them all.
 
 Every answer says when its data was read (`readFrom`, times in UTC), and
 says so when a source couldn't be reached and the answer comes from what

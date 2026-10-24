@@ -12,6 +12,8 @@ notes (`.github/workflows/release.yml`).
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-24
+
 ### Added
 
 - `needs_attention` takes a `query`: the words of the dashboard page's
@@ -111,7 +113,8 @@ notes (`.github/workflows/release.yml`).
   `NIXKEEPER_MCP_DASHBOARD`, `NIXKEEPER_MCP_DIGEST_OWNER` and
   `NIXKEEPER_MCP_PAGE`.
 
-[Unreleased]: https://github.com/nixkeeper/nixkeeper-mcp/compare/v0.4.1...HEAD
+[Unreleased]: https://github.com/nixkeeper/nixkeeper-mcp/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/nixkeeper/nixkeeper-mcp/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/nixkeeper/nixkeeper-mcp/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/nixkeeper/nixkeeper-mcp/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/nixkeeper/nixkeeper-mcp/compare/v0.2.0...v0.3.0

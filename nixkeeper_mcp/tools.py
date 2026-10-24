@@ -472,10 +472,12 @@ def needs_attention(
         ):
             continue
         if platform:
-            if kinds == {"failing"}:
-                if not any(s.endswith(platform) for s in failing):
-                    continue
-            elif not _available(entry, platform):
+            # Listed for it (meta.platforms), as the page and the sync's
+            # buildFailuresOn count: a build Hydra tried where nixpkgs
+            # doesn't list it isn't that platform's failure.
+            if not _available(entry, platform):
+                continue
+            if kinds == {"failing"} and not any(s.endswith(platform) for s in failing):
                 continue
         item = {"name": entry["name"], "why": reasons}
         if failing:

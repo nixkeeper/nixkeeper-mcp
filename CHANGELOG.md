@@ -12,6 +12,16 @@ notes (`.github/workflows/release.yml`).
 
 ## [Unreleased]
 
+### Fixed
+
+- `needs_attention` with a platform (`platform`, or `on:` in `query`)
+  counts a package there only where nixpkgs lists it (`meta.platforms`),
+  for failing builds too, as the page and the sync's `buildFailuresOn` do:
+  a build Hydra tried where it isn't listed isn't that platform's
+  failure. Darwin's failing builds were 769, two more than the page's
+  767 (`ete` and `mygui`, listed for Linux only, failing on
+  aarch64-darwin).
+
 ## [0.5.0] - 2026-10-24
 
 ### Added

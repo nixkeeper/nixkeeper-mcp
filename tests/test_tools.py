@@ -132,8 +132,12 @@ class NeedsAttention(unittest.TestCase):
         # openttd isn't available on Darwin.
         got = call("needs_attention", maintainer="iedame", platform="darwin")
         self.assertEqual([p["name"] for p in got["packages"]], ["wesnoth"])
+        # mygui fails on aarch64-darwin, but nixpkgs lists it for Linux only:
+        # the page and the sync's buildFailuresOn leave it out too.
         got = call("needs_attention", kind="failing", platform="darwin")
         self.assertEqual(got["packages"], [])
+        got = call("needs_attention", kind="failing", platform="linux")
+        self.assertNotIn("mygui", [p["name"] for p in got["packages"]])
 
     def test_staging(self):
         # On its way: the update on staging-next, with the other fields.

@@ -173,6 +173,18 @@ ATTENTION = {
         summary(OPENTTD, vuln={"n": 1, "by": ["tracker"], "severity": "high"}),
         summary(WESNOTH),
         summary({"name": "unciv", "nixStatus": "outdated", "builds": []}),
+        # Hydra tried it on Darwin, where nixpkgs doesn't list it (as
+        # mygui, 2026-10-24): not a Darwin failure.
+        summary(
+            {
+                "name": "mygui",
+                "platforms": {"linux": True, "darwin": False},
+                "builds": [
+                    {"system": "x86_64-linux", "status": "ok"},
+                    {"system": "aarch64-darwin", "status": "failed"},
+                ],
+            }
+        ),
     ]
 }
 

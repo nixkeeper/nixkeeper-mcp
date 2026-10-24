@@ -3,6 +3,7 @@ data or one digest (sources.py), with when that data was read."""
 
 import re
 from datetime import UTC, datetime, timedelta
+from urllib.parse import urlencode
 
 from . import sources
 from .cache import NotFound, Unavailable
@@ -330,10 +331,105 @@ ORDER = (
 )
 
 
+# The page's search words (nixkeeper's page/search.js), as far as this
+# tool goes. is: a card (failed: either kind of failure), as kinds here.
+QUERY_IS = {
+    "outdated": {"outdated"},
+    "failed": {"failing", "updateFailing"},
+    "builds": {"failing"},
+    "updates": {"updateFailing"},
+    "vulnerable": {"vulnerable"},
+    "backport": {"backport"},
+    "broken": {"broken"},
+    "staging-next-breaks": {"stagingNext"},
+}
+# The other words, each a test of a view's entry.
+QUERY_TESTS = {
+    "is:unbuilt": lambda e: bool(sources.unbuilt_where(e)),
+    "-is:broken": lambda e: not e.get("markedBroken"),
+    "has:pr": lambda e: (e.get("openPRs") or 0) > 0,
+    "-has:pr": lambda e: not (e.get("openPRs") or 0) > 0,
+    "-has:maintainer": lambda e: not e.get("maintainers"),
+}
+QUERY_PLATFORMS = {"linux": "linux", "darwin": "darwin", "macos": "darwin"}
+TOP_LEVEL = "top-level"
+
+
+def read_query(query):
+    """The page's search words: what each sets here, the words read. A word
+    this tool can't apply (age:, sort:, status:...) is an error naming it:
+    the page's link has every one."""
+    got = {"kinds": None, "tests": [], "names": [], "read": []}
+    for word in re.findall(r'-?[A-Za-z]+:"[^"]*"|\S+', query):
+        m = re.fullmatch(r"(-?)([A-Za-z]+):(.*)", word)
+        if not m or word.startswith("@"):
+            if word.startswith("@") and len(word) > 1:
+                got["maintainer"] = word[1:]
+            else:
+                got["names"].append(word.lower())
+            got["read"].append(word)
+            continue
+        neg, key, value = m[1], m[2].lower(), m[3].strip('"')
+        whole = f"{neg}{key}:{value}"
+        if whole in QUERY_TESTS:
+            got["tests"].append(QUERY_TESTS[whole])
+        elif not neg and key == "is" and value in QUERY_IS:
+            if got["kinds"] is not None:
+                raise ToolError(f"{word}: one is: card at a time, as on the page")
+            got["kinds"] = QUERY_IS[value]
+        elif not neg and key == "on" and value.lower() in QUERY_PLATFORMS:
+            got["platform"] = QUERY_PLATFORMS[value.lower()]
+        elif not neg and key == "team" and value and value.lower() != "none":
+            got["team"] = value
+        elif not neg and key == "by" and value:
+            got["maintainer"] = value.lstrip("@")
+        elif not neg and key == "in" and value:
+            got["set"] = value
+        else:
+            raise ToolError(
+                f"{word}: not a word this tool applies (it takes is:, "
+                "is:unbuilt, -is:broken, has:pr, -has:pr, -has:maintainer, "
+                "on:linux, on:darwin, in:, team:, by: or @handle, and names); "
+                f"the page has it: {query_link(query)}"
+            )
+        got["read"].append(word)
+    if got.get("maintainer") and got.get("team"):
+        raise ToolError("a maintainer or a team, not both")
+    return got
+
+
+def query_link(query):
+    return f"{sources.PAGE}?{urlencode({'q': query})}"
+
+
+def _in_set(entry, name):
+    first = entry["name"].split(".")[0] if "." in entry["name"] else TOP_LEVEL
+    return first == name
+
+
 def needs_attention(
-    ctx, maintainer=None, team=None, list=None, kind="any", platform=None, limit=50
+    ctx,
+    maintainer=None,
+    team=None,
+    list=None,
+    kind="any",
+    platform=None,
+    query=None,
+    limit=50,
 ):
     cache = ctx.cache
+    asked = None
+    if query is not None:
+        if maintainer or team or list or platform or kind != "any":
+            raise ToolError(
+                "query, or maintainer, team, list, kind and platform: not both"
+            )
+        asked = read_query(query)
+        maintainer, team = asked.get("maintainer"), asked.get("team")
+        platform = asked.get("platform")
+        # No is: word: every package of the view, as the page lists them.
+        kind = "all" if asked["kinds"] is None else None
+    kinds = (asked or {}).get("kinds") or (None if kind in ("any", "all") else {kind})
     given = [a for a in (maintainer, team, list) if a]
     if len(given) > 1:
         raise ToolError("give one of maintainer, team or list")
@@ -364,10 +460,19 @@ def needs_attention(
         reasons, failing = _reasons(entry, letter)
         if kind == "any" and not _needs_attention(entry, letter):
             continue
-        if kind not in ("any", "all") and kind not in reasons:
+        if kinds and not kinds & set(reasons):
+            continue
+        if asked and not all(t(entry) for t in asked["tests"]):
+            continue
+        if asked and asked.get("set") and not _in_set(entry, asked["set"]):
+            continue
+        if asked and not all(
+            any(n in a.lower() for a in [entry["name"], *(entry.get("attrs") or [])])
+            for n in asked["names"]
+        ):
             continue
         if platform:
-            if kind == "failing":
+            if kinds == {"failing"}:
                 if not any(s.endswith(platform) for s in failing):
                     continue
             elif not _available(entry, platform):
@@ -435,6 +540,8 @@ def needs_attention(
         "readFrom": {"dashboard": read_from(file)},
         "note": "Each package's full state: the package tool.",
     }
+    if asked:
+        answer["query"] = {"read": asked["read"], "page": query_link(query)}
     if maintainer or team:
         _add_can_merge(cache, answer, entries, maintainer, team)
     return answer
@@ -1034,6 +1141,19 @@ TOOLS = [
                 "platform": _s(
                     "linux or darwin: available there (for failing: failing there).",
                     enum=["linux", "darwin"],
+                ),
+                "query": _s(
+                    "Instead of the others: the dashboard page's search, as "
+                    "its box takes it (is:builds on:darwin team:Gaming wine). "
+                    "is: one card (outdated, failed, builds, updates, "
+                    "vulnerable, backport, broken, staging-next-breaks), "
+                    "is:unbuilt, -is:broken, has:pr, -has:pr, "
+                    "-has:maintainer, on:linux or on:darwin, in: a package "
+                    "set (python313Packages, top-level), team:, by: or "
+                    "@handle, and words of a name. Without is:, every package "
+                    "of the maintainer's or team's, as the page lists them. "
+                    "Other words (age:, sort:...) are refused; the answer's "
+                    "query.page links the page with the query."
                 ),
                 "limit": _limit(50),
             },

@@ -12,6 +12,16 @@ notes (`.github/workflows/release.yml`).
 
 ## [Unreleased]
 
+### Added
+
+- `needs_attention` takes a `query`: the words of the dashboard page's
+  search box (on nixkeeper.com since 2026-10-24, nixkeeper's next
+  release), `is:builds on:darwin`, `team:Gaming is:failed has:pr`,
+  `@fabaff is:vulnerable`, `in:python313Packages -is:broken`, with a name's
+  words. What it read and the page's link for it come back
+  (`query.page`); a word it can't apply (`age:`, `sort:`, `status:`...) is
+  refused, naming it and linking the page, rather than left out.
+
 ## [0.4.1] - 2026-10-23
 
 ### Fixed

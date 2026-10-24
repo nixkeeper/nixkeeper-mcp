@@ -176,6 +176,46 @@ class NeedsAttention(unittest.TestCase):
             call("needs_attention", maintainer="iedame", team="Gaming")
 
 
+class Query(unittest.TestCase):
+    """needs_attention's query: the page's search words."""
+
+    def names(self, query):
+        return [p["name"] for p in call("needs_attention", query=query)["packages"]]
+
+    def test_a_card_as_its_kind(self):
+        self.assertEqual(
+            self.names("is:builds"),
+            [p["name"] for p in call("needs_attention", kind="failing")["packages"]],
+        )
+
+    def test_a_maintainers_every_package_without_is(self):
+        self.assertEqual(
+            sorted(self.names("@iedame")), ["openttd", "wesnoth", "wesnoth-devel"]
+        )
+        self.assertEqual(self.names("by:iedame is:outdated"), ["wesnoth"])
+        self.assertEqual(
+            sorted(self.names("@iedame wes")), ["wesnoth", "wesnoth-devel"]
+        )
+        # openttd isn't available on Darwin.
+        self.assertNotIn("openttd", self.names("@iedame on:darwin"))
+
+    def test_what_was_read_and_the_pages_link(self):
+        got = call("needs_attention", query="team:Gaming is:failed")
+        self.assertEqual(got["view"], "views/team/gaming.json")
+        self.assertEqual(got["query"]["read"], ["team:Gaming", "is:failed"])
+        self.assertEqual(
+            got["query"]["page"], sources.PAGE + "?q=team%3AGaming+is%3Afailed"
+        )
+
+    def test_refused(self):
+        with self.assertRaisesRegex(tools.ToolError, r"age:1y: not a word.*q=age%3A1y"):
+            call("needs_attention", query="age:1y")
+        with self.assertRaisesRegex(tools.ToolError, "one is: card"):
+            call("needs_attention", query="is:builds is:outdated")
+        with self.assertRaisesRegex(tools.ToolError, "not both"):
+            call("needs_attention", query="is:builds", kind="failing")
+
+
 class CanMerge(unittest.TestCase):
     """The PRs a maintainer or team can merge with the merge bot."""
 
